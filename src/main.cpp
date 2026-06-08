@@ -3,14 +3,22 @@
 #include <GLFW/glfw3native.h>
 #include <windows.h>
 #include <iostream>
-
+using namespace std;
 // Callback function to find the WorkerW window
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-    HWND p = FindWindowEx(hwnd, NULL, "SHELLDLL_DefView", NULL);
-    if (p != NULL) {
-        // Find the next WorkerW window which is our target
-        HWND* ret = (HWND*)lParam;
-        *ret = FindWindowEx(NULL, hwnd, "WorkerW", NULL);
+    char className[256];
+    GetClassNameA(hwnd, className, sizeof(className));
+    
+    // We are looking for a window of class WorkerW
+    if (strcmp(className, "WorkerW") == 0) {
+        // The background WorkerW does NOT have a SHELLDLL_DefView child
+        HWND defView = FindWindowEx(hwnd, NULL, "SHELLDLL_DefView", NULL);
+        if (defView == NULL) {
+            HWND* ret = (HWND*)lParam;
+            *ret = hwnd;
+            std::cout << "SUCCESS: Found background WorkerW (might be hidden)!" << std::endl;
+            return FALSE; // Stop enumerating, we found it!
+        }
     }
     return TRUE;
 }
@@ -19,7 +27,7 @@ HWND GetWorkerW() {
     // Get Progman window
     HWND progman = FindWindow("Progman", NULL);
     if (!progman) {
-        std::cerr << "Could not find Progman window." << std::endl;
+        cerr << "Could not find Progman window." << std::endl;
         return NULL;
     }
 
@@ -27,11 +35,23 @@ HWND GetWorkerW() {
     // 0x052C is the undocumented message
     SendMessageTimeout(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, nullptr);
 
-    // Find the spawned WorkerW window
-    HWND workerw = NULL;
-    EnumWindows(EnumWindowsProc, (LPARAM)&workerw);
+    // Give Windows time to create the window (important on Windows 11)
+    Sleep(100);
 
-    return workerw;
+    // Find the spawned WorkerW window, retry a few times if not found
+    HWND workerw = NULL;
+    for (int i = 0; i < 10; ++i) {
+        EnumWindows(EnumWindowsProc, (LPARAM)&workerw);
+        if (workerw != NULL) {
+            return workerw;
+        }
+        Sleep(100);
+    }
+
+    // Windows 11 24H2 Fallback: The WorkerW hack might not work anymore.
+    // Instead, we can attach our window directly to Progman and push it to the bottom.
+    std::cout << "WorkerW not found, falling back to Progman (Windows 11 24H2 mode)." << std::endl;
+    return progman;
 }
 
 int main() {
@@ -59,13 +79,17 @@ int main() {
     HWND workerw = GetWorkerW();
 
     if (workerw != NULL) {
-        // Set the parent of our window to the WorkerW window
+        // Crucial for Windows 11: The spawned WorkerW might be hidden!
+        // We MUST force it to be visible.
+        ShowWindow(workerw, SW_SHOW);
+
+        // Set the parent of our window to the WorkerW or Progman window
         SetParent(hwnd, workerw);
         
-        // Ensure our window covers the whole screen
+        // Use HWND_TOP to place it at the top of the WorkerW children
         SetWindowPos(hwnd, HWND_TOP, 0, 0, mode->width, mode->height, SWP_SHOWWINDOW);
     } else {
-        std::cerr << "Failed to find WorkerW, window will not be attached to desktop background." << std::endl;
+        cerr << "Failed to find WorkerW or Progman, window will not be attached to desktop background." << std::endl;
     }
 
     glfwMakeContextCurrent(window);
@@ -73,6 +97,10 @@ int main() {
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+        glViewport(0, 0, width, height);
+
         // Render simple background color for testing (dark gray)
         glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
