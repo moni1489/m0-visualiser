@@ -1,0 +1,6 @@
+C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/CMakeFiles/LiveWallpaper.dir
+C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/CMakeFiles/ZERO_CHECK.dir
+C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-build/CMakeFiles/ALL_BUILD.dir
+C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-build/src/CMakeFiles/glfw.dir
+C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-build/src/CMakeFiles/update_mappings.dir

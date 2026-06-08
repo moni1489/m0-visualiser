@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/glfw-populate"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/524fd647ba43518eb4b4601d650a99ea/glfw-populate.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/2351d959b5ac8c5735ea71bb97f77cab/glfw-populate-complete.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-build.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-configure.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-download.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-install.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-mkdir.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-patch.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-test.rule"
+		},
+		{
+			"file" : "C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/6c105be3def5fa3a738218064c59505d/glfw-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"glfw-populate"
+		],
+		"name" : "glfw-populate"
+	}
+}

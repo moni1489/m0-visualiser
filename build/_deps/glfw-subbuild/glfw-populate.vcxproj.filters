@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-mkdir.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-download.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-update.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-patch.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-configure.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-build.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-install.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\6c105be3def5fa3a738218064c59505d\glfw-populate-test.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\2351d959b5ac8c5735ea71bb97f77cab\glfw-populate-complete.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\524fd647ba43518eb4b4601d650a99ea\glfw-populate.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\kraie\.gemini\antigravity-ide\scratch\live-wallpaper-audio\build\_deps\glfw-subbuild\CMakeFiles\glfw-populate" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{1AFD1235-1251-3BB9-B390-BE28A3DBD46D}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
