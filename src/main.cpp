@@ -1,57 +1,17 @@
 #include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-#include <windows.h>
 #include <iostream>
-using namespace std;
-// Callback function to find the WorkerW window
-BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-    char className[256];
-    GetClassNameA(hwnd, className, sizeof(className));
-    
-    // We are looking for a window of class WorkerW
-    if (strcmp(className, "WorkerW") == 0) {
-        // The background WorkerW does NOT have a SHELLDLL_DefView child
-        HWND defView = FindWindowEx(hwnd, NULL, "SHELLDLL_DefView", NULL);
-        if (defView == NULL) {
-            HWND* ret = (HWND*)lParam;
-            *ret = hwnd;
-            std::cout << "SUCCESS: Found background WorkerW (might be hidden)!" << std::endl;
-            return FALSE; // Stop enumerating, we found it!
-        }
-    }
-    return TRUE;
-}
 
-HWND GetWorkerW() {
-    // Get Progman window
-    HWND progman = FindWindow("Progman", NULL);
-    if (!progman) {
-        cerr << "Could not find Progman window." << std::endl;
-        return NULL;
-    }
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
-    // Send the magic message to Progman to spawn a WorkerW window behind desktop icons
-    // 0x052C is the undocumented message
-    SendMessageTimeout(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, nullptr);
+#include "AudioCapture.h"
+#include "AudioAnalyzer.h"
+#include <vector>
+#include <algorithm>
 
-    // Give Windows time to create the window (important on Windows 11)
-    Sleep(100);
-
-    // Find the spawned WorkerW window, retry a few times if not found
-    HWND workerw = NULL;
-    for (int i = 0; i < 10; ++i) {
-        EnumWindows(EnumWindowsProc, (LPARAM)&workerw);
-        if (workerw != NULL) {
-            return workerw;
-        }
-        Sleep(100);
-    }
-
-    // Windows 11 24H2 Fallback: The WorkerW hack might not work anymore.
-    // Instead, we can attach our window directly to Progman and push it to the bottom.
-    std::cout << "WorkerW not found, falling back to Progman (Windows 11 24H2 mode)." << std::endl;
-    return progman;
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    glViewport(0, 0, width, height);
 }
 
 int main() {
@@ -60,54 +20,116 @@ int main() {
         return -1;
     }
 
-    // Attempt to get monitor resolution to size window correctly
+    // Modern OpenGL settings (optional, but good for future ImGui/Shaders)
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // Get primary monitor resolution for a nice large window
     GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
 
-    // We want a window without borders
-    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-    
-    // Create the window
-    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Live Wallpaper", NULL, NULL);
+    int windowWidth = mode->width * 0.8;
+    int windowHeight = mode->height * 0.8;
+
+    // Create a standard resizable window
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Retro Audio Visualizer", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
     }
 
-    HWND hwnd = glfwGetWin32Window(window);
-    HWND workerw = GetWorkerW();
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1); // Enable VSync
 
-    if (workerw != NULL) {
-        // Crucial for Windows 11: The spawned WorkerW might be hidden!
-        // We MUST force it to be visible.
-        ShowWindow(workerw, SW_SHOW);
+    // Setup ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
 
-        // Set the parent of our window to the WorkerW or Progman window
-        SetParent(hwnd, workerw);
-        
-        // Use HWND_TOP to place it at the top of the WorkerW children
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, mode->width, mode->height, SWP_SHOWWINDOW);
-    } else {
-        cerr << "Failed to find WorkerW or Progman, window will not be attached to desktop background." << std::endl;
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 130");
+
+    // Set callback for window resize
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+    // Initial viewport setup
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    glViewport(0, 0, width, height);
+
+    // Start Audio Capture
+    AudioCapture audioCapture;
+    if (!audioCapture.Start()) {
+        std::cerr << "Failed to start audio capture" << std::endl;
     }
 
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Enable vsync
+    AudioAnalyzer audioAnalyzer(1024);
 
-    // Main loop
+    std::cout << "Successfully created visualizer window." << std::endl;
+
+    std::vector<float> audioSamples;
+    std::vector<float> frequencySpectrum;
+
+    // Main render loop
     while (!glfwWindowShouldClose(window)) {
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-        glViewport(0, 0, width, height);
+        // Start the ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
-        // Render simple background color for testing (dark gray)
-        glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+        // ImGui Settings Window
+        ImGui::Begin("Retro Visualizer Settings");
+        ImGui::Text("Welcome to the Retro Visualizer!");
+        static float color[3] = {0.05f, 0.05f, 0.1f};
+        ImGui::ColorEdit3("Background Color", color);
+        
+        // Fetch latest audio samples
+        audioCapture.GetLatestSamples(audioSamples);
+        
+        // Plot the raw waveform and spectrum in ImGui
+        if (!audioSamples.empty()) {
+            // Raw Waveform
+            int displayCount = std::min((int)audioSamples.size(), 1024);
+            ImGui::PlotLines("Waveform", audioSamples.data(), displayCount, 0, NULL, -1.0f, 1.0f, ImVec2(0, 80));
+
+            // Frequency Spectrum (FFT)
+            audioAnalyzer.ComputeSpectrum(audioSamples, frequencySpectrum);
+            if (!frequencySpectrum.empty()) {
+                // We typically only want to show the lower/mid frequencies, so we don't need to display all 512 bins
+                int specCount = std::min((int)frequencySpectrum.size(), 256);
+                ImGui::PlotHistogram("Spectrum", frequencySpectrum.data(), specCount, 0, NULL, 0.0f, 0.1f, ImVec2(0, 80));
+            }
+        } else {
+            ImGui::Text("No audio data received yet. Play some music!");
+        }
+        
+        ImGui::End();
+
+        // Clear screen with a retro dark background color
+        glClearColor(color[0], color[1], color[2], 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        // TODO: Render retro graphics here
+
+        // Render ImGui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    // Stop audio capture before exiting
+    audioCapture.Stop();
+
+    // Cleanup ImGui
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwDestroyWindow(window);
     glfwTerminate();

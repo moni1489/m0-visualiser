@@ -1,3 +1,0 @@
-C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/glfw-populate.dir
-C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/ALL_BUILD.dir
-C:/Users/kraie/.gemini/antigravity-ide/scratch/live-wallpaper-audio/build/_deps/glfw-subbuild/CMakeFiles/ZERO_CHECK.dir
