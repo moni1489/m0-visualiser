@@ -11,15 +11,22 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/glfw/glfw.git
     GIT_TAG        3.4
 )
-# Disable building GLFW tests and examples
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
-# Setup ImGui Sources (We will download it manually to avoid CMake freezes)
-set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/third_party/imgui)
+# Fetch ImGui
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.91.8
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(imgui)
+
+set(IMGUI_DIR ${imgui_SOURCE_DIR})
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -29,12 +36,20 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-# Setup KissFFT
-set(KISSFFT_DIR ${CMAKE_SOURCE_DIR}/third_party/kissfft)
+# Fetch KissFFT
+FetchContent_Declare(
+    kissfft
+    GIT_REPOSITORY https://github.com/mborgerding/kissfft.git
+    GIT_TAG        131.1.0
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(kissfft)
+
+set(KISSFFT_DIR ${kissfft_SOURCE_DIR})
 set(KISSFFT_SOURCES ${KISSFFT_DIR}/kiss_fft.c)
 
 # Download stb_image.h
-set(STB_DIR ${CMAKE_SOURCE_DIR}/third_party/stb)
+set(STB_DIR ${CMAKE_BINARY_DIR}/stb)
 file(MAKE_DIRECTORY ${STB_DIR})
 if(NOT EXISTS ${STB_DIR}/stb_image.h)
     file(DOWNLOAD https://raw.githubusercontent.com/nothings/stb/master/stb_image.h ${STB_DIR}/stb_image.h)
