@@ -199,7 +199,7 @@ int main() {
     static float bgColor[3] = {0.02f, 0.02f, 0.05f};
     static float ribbonColor[3] = {0.8f, 0.2f, 0.9f}; 
     static float targetRibbonColor[3] = {0.8f, 0.2f, 0.9f}; 
-    static bool autoColorFromMedia = false;
+    static bool autoColorFromMedia = true;
     static float waveSpeed = 1.0f;
     static float visualIntensity = 1.0f;
     static float colorShift = 0.5f;
@@ -261,15 +261,7 @@ int main() {
             ImGui::SliderFloat("Audio Intensity", &visualIntensity, 0.1f, 3.0f, "%.2f");
             ImGui::Separator();
             
-            if (!audioSamples.empty()) {
-                int displayCount = std::min((int)audioSamples.size(), 1024);
-                ImGui::PlotLines("Waveform", audioSamples.data(), displayCount, 0, NULL, -1.0f, 1.0f, ImVec2(0, 50));
-
-                if (!frequencySpectrum.empty()) {
-                    int specCount = std::min((int)frequencySpectrum.size(), 256);
-                    ImGui::PlotHistogram("Spectrum", frequencySpectrum.data(), specCount, 0, NULL, 0.0f, 0.1f, ImVec2(0, 50));
-                }
-            } else {
+            if (audioSamples.empty()) {
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Waiting for audio...");
             }
             
