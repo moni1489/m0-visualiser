@@ -7,6 +7,7 @@
 
 #include "AudioCapture.h"
 #include "AudioAnalyzer.h"
+#include "MediaColorExtractor.h"
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -15,161 +16,126 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-void RenderPSPStyle(const std::vector<float>& frequencySpectrum, float time, float r, float g, float b) {
-    glLineWidth(2.5f);
+void RenderPSPStyle(const std::vector<float>& frequencySpectrum, float time, float r, float g, float b, float speed, float intensity, float colorShift) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_LINE_SMOOTH);
 
-    int baseRibbons = 4; // Main strings
-    int historySteps = 12; // "Delay" ghost strings
+    int baseRibbons = 5; // Amount of strings per layer
+    int historySteps = 10; // Number of "ghost" trails
 
-    // Calculate global bass and mid power (smoothed)
-    float bassPower = 0.0f;
-    float midPower = 0.0f;
+    // 1. Extract raw audio energy
+    float rawBass = 0.0f;
+    float rawMid = 0.0f;
+    float rawHigh = 0.0f;
+    
     if (!frequencySpectrum.empty()) {
         int bassCount = std::min(10, (int)frequencySpectrum.size());
-        for (int i = 0; i < bassCount; ++i) bassPower += frequencySpectrum[i];
-        bassPower /= (float)bassCount;
+        for (int i = 0; i < bassCount; ++i) rawBass += frequencySpectrum[i];
+        rawBass /= (float)std::max(1, bassCount);
 
         int midCount = std::min(30, (int)frequencySpectrum.size());
-        for (int i = 10; i < midCount; ++i) midPower += frequencySpectrum[i];
-        midPower /= (float)std::max(1, midCount - 10);
+        for (int i = 10; i < midCount; ++i) rawMid += frequencySpectrum[i];
+        rawMid /= (float)std::max(1, midCount - 10);
+        
+        int highCount = std::min(100, (int)frequencySpectrum.size());
+        for (int i = 30; i < highCount; ++i) rawHigh += frequencySpectrum[i];
+        rawHigh /= (float)std::max(1, highCount - 30);
     }
     
-    // Soft cap power to ensure it never blows up off screen, but allow more energy
-    if (bassPower > 0.4f) bassPower = 0.4f;
-    if (midPower > 0.4f) midPower = 0.4f;
-
-    // Draw from oldest (most transparent) to newest
-    for (int step = historySteps - 1; step >= 0; --step) {
-        float t = time - step * 0.05f; // Time delay
-        float stepAlpha = std::pow(1.0f - (step / (float)historySteps), 1.5f); // Fade out history
-        
-        for (int i = 0; i < baseRibbons; ++i) {
-            glBegin(GL_LINE_STRIP);
-            // Increase step size slightly for smoother performance
-            for (float x = -1.05f; x <= 1.05f; x += 0.02f) {
-                // Envelope: pinched edges, natural smooth center
-                float envelope = std::cos(x * 3.14159265f * 0.5f);
-                if (envelope < 0.0f) envelope = 0.0f;
-                envelope = std::pow(envelope, 1.5f); // Soft, natural shape without extreme spikes
-                
-                // Base idle intensity + global music reaction
-                // DOUBLED the strength from the last iteration for a good middle ground
-                float audioIntensity = 0.04f + (bassPower * 3.5f) + (midPower * 2.0f); 
-                
-                // Create strings (pure smooth sine waves)
-                float pspWave = 0.0f;
-                pspWave += std::sin(x * 3.5f + t * 2.5f + i * 1.5f) * 1.0f;
-                pspWave += std::sin(x * 6.0f - t * 1.8f + i * 2.1f) * 0.4f;
-                pspWave += std::cos(x * 2.0f + t * 3.2f + i * 0.8f) * 0.4f; // Slower deep wobble
-                
-                // Final Y position
-                float y = pspWave * audioIntensity * envelope;
-                
-                // Color and alpha
-                float alpha = (envelope * 0.6f + 0.4f) * stepAlpha; 
-                if (alpha > 1.0f) alpha = 1.0f;
-                
-                float colorVar = (i % 3) * 0.05f;
-                glColor4f(r - colorVar, g + colorVar, b, alpha);
-                
-                glVertex2f(x, y);
-            }
-            glEnd();
-        }
+    // VERY IMPORTANT: Smooth out the energy across frames so it doesn't hurt the eyes
+    static float bassPower = 0.0f;
+    static float midPower = 0.0f;
+    static float highPower = 0.0f;
+    
+    // 0.08f multiplier makes it blend smoothly between frames without jumping
+    bassPower += (rawBass - bassPower) * 0.08f;
+    midPower += (rawMid - midPower) * 0.08f;
+    highPower += (rawHigh - highPower) * 0.08f;
+    
+    // 2. Automatic Gain Control (AGC) - Auto-adjusts to the song's volume
+    static float sensitivity = 1.0f;
+    float currentMax = std::max({bassPower, midPower, highPower});
+    if (currentMax > 0.001f) {
+        float targetSensitivity = 0.2f / currentMax; // Target an optimal visual amplitude
+        targetSensitivity = std::clamp(targetSensitivity, 0.3f, 4.0f); // Less aggressive limits
+        sensitivity += (targetSensitivity - sensitivity) * 0.01f; // Slower smooth transition
+    } else {
+        sensitivity += (1.0f - sensitivity) * 0.01f; // Return to normal if silent
     }
-}
+    
+    float finalBass = bassPower * sensitivity;
+    float finalMid = midPower * sensitivity;
+    float finalHigh = highPower * sensitivity;
 
-void RenderXboxStyle(const std::vector<float>& frequencySpectrum, float time, float r, float g, float b) {
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE); // Glow effect
-    glEnable(GL_LINE_SMOOTH);
+    finalBass = std::min(finalBass, 0.4f); // Softer cap
+    finalMid = std::min(finalMid, 0.4f);
+    
+    // 3. Dynamic color shift based on frequency
+    float dynR = r + finalBass * colorShift;
+    float dynG = g + finalHigh * colorShift;
+    float dynB = b + finalMid * colorShift;
+    
+    // Normalize color back to [0, 1] range
+    float maxCol = std::max({dynR, dynG, dynB, 1.0f});
+    dynR /= maxCol; dynG /= maxCol; dynB /= maxCol;
 
-    // 1. Draw glowing inner core
-    glBegin(GL_TRIANGLE_FAN);
-    glColor4f(r, g, b, 0.7f); // Bright center
-    glVertex2f(0.0f, 0.0f);
-    for (int i = 0; i <= 60; ++i) {
-        float angle = (i / 60.0f) * 3.14159265f * 2.0f;
-        float pulse = 0.0f;
-        if (!frequencySpectrum.empty()) {
-            pulse = frequencySpectrum[0] * 0.3f; // Bass causes core to throb
-        }
-        float radius = 0.15f + pulse + std::sin(time * 3.0f) * 0.01f;
-        glColor4f(r, g, b, 0.0f); // Fade out edge
-        glVertex2f(radius * std::cos(angle), radius * std::sin(angle));
-    }
-    glEnd();
-
-    // 2. Draw sharp oscilloscope rings around it
-    int segments = 256;
-    glLineWidth(2.5f);
-    for (int ring = 0; ring < 2; ++ring) {
-        float baseRadius = 0.25f + ring * 0.1f;
+    // 4. Render 3 Depth Layers
+    for (int layer = 0; layer < 3; ++layer) {
+        float layerWidth = (layer == 0) ? 1.0f : (layer == 1 ? 2.5f : 1.5f);
+        glLineWidth(layerWidth);
         
-        glBegin(GL_LINE_LOOP);
-        for (int i = 0; i < segments; ++i) {
-            float angle = (i / (float)segments) * 3.14159265f * 2.0f;
+        int steps = historySteps - layer * 2; 
+        
+        for (int step = steps - 1; step >= 0; --step) {
+            float layerTimeOffset = time * speed * (0.7f + layer * 0.3f); 
+            float t = layerTimeOffset - step * 0.05f;
             
-            float spike = 0.0f;
-            if (!frequencySpectrum.empty()) {
-                // Symmetrical spikes mirroring left/right
-                int mirrorIndex = segments / 2 - std::abs(i - segments / 2);
-                int freqIndex = (int)((mirrorIndex / (float)(segments/2)) * 64);
-                if (freqIndex < frequencySpectrum.size()) {
-                    // Make spikes very sharp
-                    spike = std::pow(frequencySpectrum[freqIndex], 1.2f) * (3.0f + ring * 2.0f);
+            float stepAlpha = std::pow(1.0f - (step / (float)steps), 1.5f);
+            if (layer == 0) stepAlpha *= 0.35f; 
+            if (layer == 2) stepAlpha *= 0.8f;  
+            
+            for (int i = 0; i < baseRibbons; ++i) {
+                glBegin(GL_LINE_STRIP);
+                for (float x = -1.15f; x <= 1.15f; x += 0.02f) {
+                    float envelope = std::cos(x * 3.14159265f * 0.45f);
+                    if (envelope < 0.0f) envelope = 0.0f;
+                    envelope = std::pow(envelope, 1.5f);
+                    
+                    // Reduced multipliers for smoother movement. Increased base value (0.08f) so it looks good silent.
+                    float audioIntensity = 0.08f * intensity + (finalBass * 2.0f * intensity) + (finalMid * 1.5f * intensity);
+                    if (layer == 0) audioIntensity *= 0.6f;  
+                    if (layer == 2) audioIntensity *= 1.2f;  
+                    
+                    float layerPhase = layer * 2.1f;
+                    float pspWave = 0.0f;
+                    
+                    pspWave += std::sin(x * (2.5f + layer*0.5f) + t * 2.2f + i * 1.5f + layerPhase) * 1.0f;
+                    pspWave += std::sin(x * (4.0f - layer*0.2f) - t * 1.7f + i * 2.1f + layerPhase) * 0.4f;
+                    pspWave += std::cos(x * 1.8f + t * 2.8f + i * 0.8f + layerPhase) * 0.4f;
+                    
+                    // Reduced treble jitter
+                    if (layer == 2 && finalHigh > 0.05f) {
+                        pspWave += std::sin(x * 15.0f + t * 12.0f) * finalHigh * 0.8f * intensity;
+                    }
+                    
+                    float y = pspWave * audioIntensity * envelope;
+                    
+                    float parallaxOffset = (layer - 1) * 0.15f;
+                    y += parallaxOffset * envelope * 0.5f;
+                    
+                    float alpha = (envelope * 0.8f + 0.2f) * stepAlpha;
+                    if (alpha > 1.0f) alpha = 1.0f;
+                    
+                    float colorVar = (i % 3) * 0.08f;
+                    glColor4f(dynR - colorVar, dynG + colorVar * 0.5f, dynB + colorVar, alpha);
+                    
+                    glVertex2f(x, y);
                 }
+                glEnd();
             }
-            
-            float radius = baseRadius + spike;
-            // Rotate the rings in opposite directions
-            float rotAngle = angle + time * (ring == 0 ? 0.3f : -0.2f);
-            
-            glColor4f(r, g, b, 0.9f - ring * 0.3f);
-            glVertex2f(radius * std::cos(rotAngle), radius * std::sin(rotAngle));
         }
-        glEnd();
     }
-}
-
-void RenderClassicBars(const std::vector<float>& frequencySpectrum, float time, float r, float g, float b) {
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-    if (frequencySpectrum.empty()) return;
-
-    int numBars = 64;
-    float barWidth = 2.0f / numBars * 0.8f;
-    float spacing = 2.0f / numBars * 0.2f;
-
-    glBegin(GL_QUADS);
-    for (int i = 0; i < numBars; ++i) {
-        float x = -0.9f + i * (barWidth + spacing); // Centered a bit better
-        
-        int freqIndex = (int)((i / (float)numBars) * (frequencySpectrum.size() / 3.0f));
-        float height = frequencySpectrum[freqIndex] * 6.0f; // Scale height
-        if (height < 0.01f) height = 0.01f; // Minimum height
-
-        float alpha = 0.9f;
-        
-        // Bottom left
-        glColor4f(r * 0.1f, g * 0.1f, b * 0.1f, alpha);
-        glVertex2f(x, -0.6f);
-        
-        // Bottom right
-        glVertex2f(x + barWidth, -0.6f);
-        
-        // Top right
-        glColor4f(r, g, b, alpha);
-        glVertex2f(x + barWidth, -0.6f + height);
-        
-        // Top left
-        glVertex2f(x, -0.6f + height);
-    }
-    glEnd();
 }
 
 int main() {
@@ -178,19 +144,12 @@ int main() {
         return -1;
     }
 
-    // Modern OpenGL settings (optional, but good for future ImGui/Shaders)
-    // glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    // glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    // Get primary monitor resolution for a nice large window
     GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
 
     int windowWidth = mode->width * 0.8;
     int windowHeight = mode->height * 0.8;
 
-    // Create a standard resizable window
     GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Retro Audio Visualizer", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
@@ -211,15 +170,12 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    // Set callback for window resize
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    // Initial viewport setup
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     glViewport(0, 0, width, height);
 
-    // Start Audio Capture
     AudioCapture audioCapture;
     if (!audioCapture.Start()) {
         std::cerr << "Failed to start audio capture" << std::endl;
@@ -227,82 +183,105 @@ int main() {
 
     AudioAnalyzer audioAnalyzer(1024);
 
+    MediaColorExtractor mediaColorExtractor;
+    mediaColorExtractor.Start();
+
     std::cout << "Successfully created visualizer window." << std::endl;
 
     std::vector<float> audioSamples;
     std::vector<float> frequencySpectrum;
     float time = 0.0f;
 
-    // Visualizer settings state
-    int currentMode = 0;
-    const char* modes[] = { "PSP Strings (Breakcore)", "Xbox Classic (Orb)", "Retro Spectrum Bars" };
+    bool showMenu = true;
+    bool wasTabPressed = false;
+
+    // Settings state
+    static float bgColor[3] = {0.02f, 0.02f, 0.05f};
+    static float ribbonColor[3] = {0.8f, 0.2f, 0.9f}; 
+    static float targetRibbonColor[3] = {0.8f, 0.2f, 0.9f}; 
+    static bool autoColorFromMedia = false;
+    static float waveSpeed = 1.0f;
+    static float visualIntensity = 1.0f;
+    static float colorShift = 0.5f;
 
     // Main render loop
     while (!glfwWindowShouldClose(window)) {
         time += 0.016f; // Approx 60 FPS time step
 
-        // Start the ImGui frame
+        // Handle menu toggle via Tab key
+        bool isTabPressed = glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS;
+        if (isTabPressed && !wasTabPressed) {
+            showMenu = !showMenu;
+        }
+        wasTabPressed = isTabPressed;
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // ImGui Settings Window
-        ImGui::Begin("Retro Visualizer Settings");
-        ImGui::Text("Welcome to the Retro Visualizer!");
-        
-        ImGui::Combo("Visualizer Mode", &currentMode, modes, IM_ARRAYSIZE(modes));
-        
-        static float bgColor[3] = {0.02f, 0.02f, 0.05f};
-        static float ribbonColor[3] = {0.8f, 0.2f, 0.9f}; // Default pink/purple
-        
-        // Auto-change color to green if switching to Xbox mode for the first time
-        static int lastMode = 0;
-        if (currentMode == 1 && lastMode != 1) {
-            ribbonColor[0] = 0.1f; ribbonColor[1] = 0.9f; ribbonColor[2] = 0.2f; // Xbox Green
-        }
-        lastMode = currentMode;
-
-        ImGui::ColorEdit3("Background Color", bgColor);
-        ImGui::ColorEdit3("Primary Color", ribbonColor);
-        
-        // Fetch latest audio samples
         audioCapture.GetLatestSamples(audioSamples);
-        
-        // Always compute spectrum to clear or update it
         audioAnalyzer.ComputeSpectrum(audioSamples, frequencySpectrum);
-        
-        // Plot the raw waveform and spectrum in ImGui
-        if (!audioSamples.empty()) {
-            // Raw Waveform
-            int displayCount = std::min((int)audioSamples.size(), 1024);
-            ImGui::PlotLines("Waveform", audioSamples.data(), displayCount, 0, NULL, -1.0f, 1.0f, ImVec2(0, 80));
 
-            // Frequency Spectrum (FFT)
-            if (!frequencySpectrum.empty()) {
-                // We typically only want to show the lower/mid frequencies
-                int specCount = std::min((int)frequencySpectrum.size(), 256);
-                ImGui::PlotHistogram("Spectrum", frequencySpectrum.data(), specCount, 0, NULL, 0.0f, 0.1f, ImVec2(0, 80));
+        if (autoColorFromMedia) {
+            float mr, mg, mb;
+            if (mediaColorExtractor.GetDominantColor(mr, mg, mb)) {
+                targetRibbonColor[0] = mr;
+                targetRibbonColor[1] = mg;
+                targetRibbonColor[2] = mb;
             }
+            ribbonColor[0] += (targetRibbonColor[0] - ribbonColor[0]) * 0.05f;
+            ribbonColor[1] += (targetRibbonColor[1] - ribbonColor[1]) * 0.05f;
+            ribbonColor[2] += (targetRibbonColor[2] - ribbonColor[2]) * 0.05f;
         } else {
-            ImGui::Text("Waiting for audio... (idle waves playing)");
+            targetRibbonColor[0] = ribbonColor[0];
+            targetRibbonColor[1] = ribbonColor[1];
+            targetRibbonColor[2] = ribbonColor[2];
         }
-        
-        ImGui::End();
 
-        // Clear screen with a retro dark background color
+        if (showMenu) {
+            // ImGui Settings Window
+            // We use AlwaysAutoResize to make it compact
+            ImGui::Begin(" m0-visualiser setting", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::Text("press tab to hide or show this menu");
+            ImGui::Separator();
+            
+            ImGui::Text("appearance");
+            ImGui::ColorEdit3("background ", bgColor);
+            if (!autoColorFromMedia) {
+                ImGui::ColorEdit3("primary", ribbonColor);
+            } else {
+                ImGui::Text("Primary Color: (Auto-syncing with media)");
+            }
+            ImGui::Checkbox("Auto-Color from Spotify/Media", &autoColorFromMedia);
+            ImGui::SliderFloat("Color Reactivity", &colorShift, 0.0f, 2.0f, "%.2f");
+            ImGui::Separator();
+            
+            ImGui::Text("Behavior");
+            ImGui::SliderFloat("Wave Speed", &waveSpeed, 0.1f, 3.0f, "%.2f");
+            ImGui::SliderFloat("Audio Intensity", &visualIntensity, 0.1f, 3.0f, "%.2f");
+            ImGui::Separator();
+            
+            if (!audioSamples.empty()) {
+                int displayCount = std::min((int)audioSamples.size(), 1024);
+                ImGui::PlotLines("Waveform", audioSamples.data(), displayCount, 0, NULL, -1.0f, 1.0f, ImVec2(0, 50));
+
+                if (!frequencySpectrum.empty()) {
+                    int specCount = std::min((int)frequencySpectrum.size(), 256);
+                    ImGui::PlotHistogram("Spectrum", frequencySpectrum.data(), specCount, 0, NULL, 0.0f, 0.1f, ImVec2(0, 50));
+                }
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Waiting for audio...");
+            }
+            
+            ImGui::End();
+        }
+
         glClearColor(bgColor[0], bgColor[1], bgColor[2], 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // Render the beautiful flowing ribbons based on mode!
-        if (currentMode == 0) {
-            RenderPSPStyle(frequencySpectrum, time, ribbonColor[0], ribbonColor[1], ribbonColor[2]);
-        } else if (currentMode == 1) {
-            RenderXboxStyle(frequencySpectrum, time, ribbonColor[0], ribbonColor[1], ribbonColor[2]);
-        } else if (currentMode == 2) {
-            RenderClassicBars(frequencySpectrum, time, ribbonColor[0], ribbonColor[1], ribbonColor[2]);
-        }
+        // Render the beautiful flowing ribbons!
+        RenderPSPStyle(frequencySpectrum, time, ribbonColor[0], ribbonColor[1], ribbonColor[2], waveSpeed, visualIntensity, colorShift);
 
-        // Render ImGui
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -310,10 +289,8 @@ int main() {
         glfwPollEvents();
     }
 
-    // Stop audio capture before exiting
     audioCapture.Stop();
-
-    // Cleanup ImGui
+    mediaColorExtractor.Stop();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

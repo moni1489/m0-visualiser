@@ -33,12 +33,22 @@ set(IMGUI_SOURCES
 set(KISSFFT_DIR ${CMAKE_SOURCE_DIR}/third_party/kissfft)
 set(KISSFFT_SOURCES ${KISSFFT_DIR}/kiss_fft.c)
 
-add_executable(LiveWallpaper src/main.cpp src/AudioCapture.cpp src/AudioAnalyzer.cpp ${IMGUI_SOURCES} ${KISSFFT_SOURCES})
+# Download stb_image.h
+set(STB_DIR ${CMAKE_SOURCE_DIR}/third_party/stb)
+file(MAKE_DIRECTORY ${STB_DIR})
+if(NOT EXISTS ${STB_DIR}/stb_image.h)
+    file(DOWNLOAD https://raw.githubusercontent.com/nothings/stb/master/stb_image.h ${STB_DIR}/stb_image.h)
+endif()
 
-target_include_directories(LiveWallpaper PRIVATE ${IMGUI_DIR} ${IMGUI_DIR}/backends ${KISSFFT_DIR})
+add_executable(LiveWallpaper src/main.cpp src/AudioCapture.cpp src/AudioAnalyzer.cpp src/MediaColorExtractor.cpp ${IMGUI_SOURCES} ${KISSFFT_SOURCES})
+
+target_include_directories(LiveWallpaper PRIVATE ${IMGUI_DIR} ${IMGUI_DIR}/backends ${KISSFFT_DIR} ${STB_DIR})
 target_link_libraries(LiveWallpaper PRIVATE glfw)
 
 # Windows specific flags and libraries
 if(WIN32)
-    target_link_libraries(LiveWallpaper PRIVATE user32 gdi32 shell32 opengl32 ole32)
+    if(MSVC)
+        target_compile_options(LiveWallpaper PRIVATE /await)
+    endif()
+    target_link_libraries(LiveWallpaper PRIVATE user32 gdi32 shell32 opengl32 ole32 windowsapp)
 endif()
