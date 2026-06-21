@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(LiveWallpaperAudio)
+project(m0-visualiserAudio)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -61,16 +61,16 @@ if(NOT EXISTS ${STB_DIR}/stb_image.h)
     file(DOWNLOAD https://raw.githubusercontent.com/nothings/stb/master/stb_image.h ${STB_DIR}/stb_image.h)
 endif()
 
-add_executable(LiveWallpaper WIN32 src/main.cpp src/AudioCapture.cpp src/AudioAnalyzer.cpp src/MediaColorExtractor.cpp ${IMGUI_SOURCES} ${KISSFFT_SOURCES})
+add_executable(m0-visualiser WIN32 src/main.cpp src/AudioCapture.cpp src/AudioAnalyzer.cpp src/MediaColorExtractor.cpp ${IMGUI_SOURCES} ${KISSFFT_SOURCES})
 
-target_include_directories(LiveWallpaper PRIVATE ${IMGUI_DIR} ${IMGUI_DIR}/backends ${KISSFFT_DIR} ${STB_DIR})
-target_link_libraries(LiveWallpaper PRIVATE glfw)
+target_include_directories(m0-visualiser PRIVATE ${IMGUI_DIR} ${IMGUI_DIR}/backends ${KISSFFT_DIR} ${STB_DIR})
+target_link_libraries(m0-visualiser PRIVATE glfw)
 
 # Windows specific flags and libraries
 if(WIN32)
-    target_compile_definitions(LiveWallpaper PRIVATE NOMINMAX)
+    target_compile_definitions(m0-visualiser PRIVATE NOMINMAX)
     if(MSVC)
-        target_compile_options(LiveWallpaper PRIVATE /await)
+        target_compile_options(m0-visualiser PRIVATE /await)
     endif()
-    target_link_libraries(LiveWallpaper PRIVATE user32 gdi32 shell32 opengl32 ole32 windowsapp)
+    target_link_libraries(m0-visualiser PRIVATE user32 gdi32 shell32 opengl32 ole32 windowsapp)
 endif()

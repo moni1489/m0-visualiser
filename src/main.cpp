@@ -162,7 +162,7 @@ int main() {
     int windowWidth = mode->width * 0.8;
     int windowHeight = mode->height * 0.8;
 
-    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Retro Audio Visualizer", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "m0-visualiser", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
