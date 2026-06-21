@@ -12,14 +12,17 @@
 the project uses CMake and will automatically download dependencies like `GLFW`, `ImGui`, `KissFFT`, and `stb_image`.
 
 ```bash
-# 1. Clone the repository
+# 1. Open developer powershell for vs 2022
+
+
+# 2. Clone the repository
 git clone https://github.com/moni1489/m0-visualiser.git
 cd m0-visualiser
 
-# 2. Generate project files
+# 3. Generate project files
 cmake -S . -B build
 
-# 3. Build the project
+# 4. Build the project
 cmake --build build --config Release
 ```
 
