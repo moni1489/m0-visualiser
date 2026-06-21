@@ -17,14 +17,17 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
-# Fetch ImGui
+# Fetch ImGui (source only, no CMakeLists)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG        v1.91.8
     GIT_SHALLOW    TRUE
 )
-FetchContent_MakeAvailable(imgui)
+FetchContent_GetProperties(imgui)
+if(NOT imgui_POPULATED)
+    FetchContent_Populate(imgui)
+endif()
 
 set(IMGUI_DIR ${imgui_SOURCE_DIR})
 set(IMGUI_SOURCES
@@ -36,14 +39,17 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-# Fetch KissFFT
+# Fetch KissFFT (source only, skip their CMakeLists)
 FetchContent_Declare(
     kissfft
     GIT_REPOSITORY https://github.com/mborgerding/kissfft.git
     GIT_TAG        131.1.0
     GIT_SHALLOW    TRUE
 )
-FetchContent_MakeAvailable(kissfft)
+FetchContent_GetProperties(kissfft)
+if(NOT kissfft_POPULATED)
+    FetchContent_Populate(kissfft)
+endif()
 
 set(KISSFFT_DIR ${kissfft_SOURCE_DIR})
 set(KISSFFT_SOURCES ${KISSFFT_DIR}/kiss_fft.c)
