@@ -13,8 +13,8 @@ the project uses CMake and will automatically download dependencies like `GLFW`,
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YourUsername/RetroAudioVisualizer.git
-cd RetroAudioVisualizer
+git clone https://github.com/moni1489/m0-visualiser.git
+cd m0-visualiser
 
 # 2. Generate project files
 cmake -S . -B build
