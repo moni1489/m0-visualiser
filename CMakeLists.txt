@@ -40,13 +40,14 @@ if(NOT EXISTS ${STB_DIR}/stb_image.h)
     file(DOWNLOAD https://raw.githubusercontent.com/nothings/stb/master/stb_image.h ${STB_DIR}/stb_image.h)
 endif()
 
-add_executable(LiveWallpaper src/main.cpp src/AudioCapture.cpp src/AudioAnalyzer.cpp src/MediaColorExtractor.cpp ${IMGUI_SOURCES} ${KISSFFT_SOURCES})
+add_executable(LiveWallpaper WIN32 src/main.cpp src/AudioCapture.cpp src/AudioAnalyzer.cpp src/MediaColorExtractor.cpp ${IMGUI_SOURCES} ${KISSFFT_SOURCES})
 
 target_include_directories(LiveWallpaper PRIVATE ${IMGUI_DIR} ${IMGUI_DIR}/backends ${KISSFFT_DIR} ${STB_DIR})
 target_link_libraries(LiveWallpaper PRIVATE glfw)
 
 # Windows specific flags and libraries
 if(WIN32)
+    target_compile_definitions(LiveWallpaper PRIVATE NOMINMAX)
     if(MSVC)
         target_compile_options(LiveWallpaper PRIVATE /await)
     endif()

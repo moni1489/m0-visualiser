@@ -11,12 +11,14 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <windows.h>
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-void RenderPSPStyle(const std::vector<float>& frequencySpectrum, float time, float r, float g, float b, float speed, float intensity, float colorShift) {
+void RenderPSPStyle(const std::vector<float>& frequencySpectrum, float time, float r, float g, float b, float speed, float intensity, float colorShift, bool enableGlow) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_LINE_SMOOTH);
@@ -96,49 +98,59 @@ void RenderPSPStyle(const std::vector<float>& frequencySpectrum, float time, flo
             if (layer == 2) stepAlpha *= 0.8f;  
             
             for (int i = 0; i < baseRibbons; ++i) {
-                glBegin(GL_LINE_STRIP);
-                for (float x = -1.15f; x <= 1.15f; x += 0.02f) {
-                    float envelope = std::cos(x * 3.14159265f * 0.45f);
-                    if (envelope < 0.0f) envelope = 0.0f;
-                    envelope = std::pow(envelope, 1.5f);
-                    
-                    // Reduced multipliers for smoother movement. Increased base value (0.08f) so it looks good silent.
-                    float audioIntensity = 0.08f * intensity + (finalBass * 2.0f * intensity) + (finalMid * 1.5f * intensity);
-                    if (layer == 0) audioIntensity *= 0.6f;  
-                    if (layer == 2) audioIntensity *= 1.2f;  
-                    
-                    float layerPhase = layer * 2.1f;
-                    float pspWave = 0.0f;
-                    
-                    pspWave += std::sin(x * (2.5f + layer*0.5f) + t * 2.2f + i * 1.5f + layerPhase) * 1.0f;
-                    pspWave += std::sin(x * (4.0f - layer*0.2f) - t * 1.7f + i * 2.1f + layerPhase) * 0.4f;
-                    pspWave += std::cos(x * 1.8f + t * 2.8f + i * 0.8f + layerPhase) * 0.4f;
-                    
-                    // Reduced treble jitter
-                    if (layer == 2 && finalHigh > 0.05f) {
-                        pspWave += std::sin(x * 15.0f + t * 12.0f) * finalHigh * 0.8f * intensity;
+                auto drawRibbonPass = [&](float wMult, float aMult) {
+                    glLineWidth(layerWidth * wMult);
+                    glBegin(GL_LINE_STRIP);
+                    for (float x = -1.15f; x <= 1.15f; x += 0.02f) {
+                        float envelope = std::cos(x * 3.14159265f * 0.45f);
+                        if (envelope < 0.0f) envelope = 0.0f;
+                        envelope = std::pow(envelope, 1.5f);
+                        
+                        float audioIntensity = 0.08f * intensity + (finalBass * 2.0f * intensity) + (finalMid * 1.5f * intensity);
+                        if (layer == 0) audioIntensity *= 0.6f;  
+                        if (layer == 2) audioIntensity *= 1.2f;  
+                        
+                        float layerPhase = layer * 2.1f;
+                        float pspWave = 0.0f;
+                        
+                        pspWave += std::sin(x * (2.5f + layer*0.5f) + t * 2.2f + i * 1.5f + layerPhase) * 1.0f;
+                        pspWave += std::sin(x * (4.0f - layer*0.2f) - t * 1.7f + i * 2.1f + layerPhase) * 0.4f;
+                        pspWave += std::cos(x * 1.8f + t * 2.8f + i * 0.8f + layerPhase) * 0.4f;
+                        
+                        if (layer == 2 && finalHigh > 0.05f) {
+                            pspWave += std::sin(x * 15.0f + t * 12.0f) * finalHigh * 0.8f * intensity;
+                        }
+                        
+                        float y = pspWave * audioIntensity * envelope;
+                        
+                        float parallaxOffset = (layer - 1) * 0.15f;
+                        y += parallaxOffset * envelope * 0.5f;
+                        
+                        float alpha = (envelope * 0.8f + 0.2f) * stepAlpha * aMult;
+                        if (alpha > 1.0f) alpha = 1.0f;
+                        
+                        float colorVar = (i % 3) * 0.08f;
+                        glColor4f(dynR - colorVar, dynG + colorVar * 0.5f, dynB + colorVar, alpha);
+                        
+                        glVertex2f(x, y);
                     }
-                    
-                    float y = pspWave * audioIntensity * envelope;
-                    
-                    float parallaxOffset = (layer - 1) * 0.15f;
-                    y += parallaxOffset * envelope * 0.5f;
-                    
-                    float alpha = (envelope * 0.8f + 0.2f) * stepAlpha;
-                    if (alpha > 1.0f) alpha = 1.0f;
-                    
-                    float colorVar = (i % 3) * 0.08f;
-                    glColor4f(dynR - colorVar, dynG + colorVar * 0.5f, dynB + colorVar, alpha);
-                    
-                    glVertex2f(x, y);
+                    glEnd();
+                };
+
+                if (enableGlow) {
+                    drawRibbonPass(6.0f, 0.15f); // Thick transparent glow pass
                 }
-                glEnd();
+                drawRibbonPass(1.0f, 1.0f); // Core bright pass
             }
         }
     }
 }
 
+#ifdef _WIN32
+int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow) {
+#else
 int main() {
+#endif
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
         return -1;
@@ -203,10 +215,31 @@ int main() {
     static float waveSpeed = 1.0f;
     static float visualIntensity = 1.0f;
     static float colorShift = 0.5f;
+    static bool enableGlow = true;
+    static bool isDesktopMode = false;
+    bool wasF11Pressed = false;
+    bool isFullscreen = false;
+    int savedX, savedY, savedW, savedH;
 
     // Main render loop
     while (!glfwWindowShouldClose(window)) {
         time += 0.016f; // Approx 60 FPS time step
+
+        // Handle F11 Fullscreen
+        bool isF11Pressed = glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS;
+        if (isF11Pressed && !wasF11Pressed) {
+            if (isFullscreen) {
+                glfwSetWindowMonitor(window, NULL, savedX, savedY, savedW, savedH, 0);
+            } else {
+                glfwGetWindowPos(window, &savedX, &savedY);
+                glfwGetWindowSize(window, &savedW, &savedH);
+                GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+                const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+                glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            }
+            isFullscreen = !isFullscreen;
+        }
+        wasF11Pressed = isF11Pressed;
 
         // Handle menu toggle via Tab key
         bool isTabPressed = glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS;
@@ -257,6 +290,7 @@ int main() {
             ImGui::Separator();
             
             ImGui::Text("Behavior");
+            ImGui::Checkbox("Enable Neon Glow", &enableGlow);
             ImGui::SliderFloat("Wave Speed", &waveSpeed, 0.1f, 3.0f, "%.2f");
             ImGui::SliderFloat("Audio Intensity", &visualIntensity, 0.1f, 3.0f, "%.2f");
             ImGui::Separator();
@@ -272,7 +306,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         // Render the beautiful flowing ribbons!
-        RenderPSPStyle(frequencySpectrum, time, ribbonColor[0], ribbonColor[1], ribbonColor[2], waveSpeed, visualIntensity, colorShift);
+        RenderPSPStyle(frequencySpectrum, time, ribbonColor[0], ribbonColor[1], ribbonColor[2], waveSpeed, visualIntensity, colorShift, enableGlow);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
